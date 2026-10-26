@@ -1,0 +1,10 @@
+{
+  "name": "a2h",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Autorização humana com decisões Ed25519 verificadas localmente",
+  "engines": { "node": ">=22" },
+  "bin": { "a2h": "src/cli.mjs" },
+  "scripts": { "test": "node --test test/*.test.mjs" }
+}

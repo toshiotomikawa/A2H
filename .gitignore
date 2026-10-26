@@ -1,0 +1,13 @@
+.local/
+node_modules/
+.env*
+config*.json
+*.pem
+*.key
+.archive/
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+.claude/
+.codex/
+.agents/
