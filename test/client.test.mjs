@@ -89,6 +89,65 @@ test('servidor falso: redirecionamento não encaminha credencial', async t => {
   const config = await fake(t, () => ({ code: 302, body: {} }));
   await assert.rejects(requestAuthorization(config, options));
 });
+
+function captureStderr(t) {
+  const lines = [];
+  const write = process.stderr.write;
+  process.stderr.write = chunk => { lines.push(String(chunk)); return true; };
+  t.after(() => { process.stderr.write = write; });
+  return lines;
+}
+test('servidor falso: pedido esquecido é reenviado uma vez e aprovado pelo novo id', async t => {
+  const posts = [];
+  const config = await fake(t, (r, req) => {
+    if (req.method === 'POST') { posts.push(r); return { status: 'pending' }; }
+    return req.url.endsWith(`/${posts[0].id}`) ? { code: 404, body: {} } : signed(r);
+  });
+  const lines = captureStderr(t);
+  const result = await requestAuthorization(config, { ...options, ttl: 60 });
+  assert.equal(result.decision, 'approved');
+  assert.equal(posts.length, 2);
+  assert.notEqual(posts[1].id, posts[0].id);
+  assert.equal(posts[1].expires_at, posts[0].expires_at);
+  assert.ok(posts[1].created_at >= posts[0].created_at);
+  assert.equal(posts[1].summary, posts[0].summary);
+  assert.equal(posts[1].requester, posts[0].requester);
+  assert.equal(result.id, posts[1].id);
+  assert.equal(lines.length, 1);
+  assert.match(lines[0], /reenviado/);
+});
+test('servidor falso: segundo pedido esquecido não é reenviado de novo', async t => {
+  const posts = [];
+  const config = await fake(t, (r, req) => {
+    if (req.method === 'POST') { posts.push(r); return { status: 'pending' }; }
+    return { code: 404, body: {} };
+  });
+  const lines = captureStderr(t);
+  await assert.rejects(requestAuthorization(config, { ...options, ttl: 60 }), /server_error/);
+  assert.equal(posts.length, 2);
+  assert.equal(lines.length, 1);
+});
+test('servidor falso: pedido esquecido com menos de 30 segundos não é reenviado', async t => {
+  const posts = [];
+  const config = await fake(t, (r, req) => {
+    if (req.method === 'POST') { posts.push(r); return { status: 'pending' }; }
+    return { code: 404, body: {} };
+  });
+  const lines = captureStderr(t);
+  assert.equal((await requestAuthorization(config, options)).decision, 'expired');
+  assert.equal(posts.length, 1);
+  assert.equal(lines.length, 0);
+});
+test('servidor falso: decisão assinada para o pedido esquecido não vale para o reenvio', async t => {
+  const posts = [];
+  const config = await fake(t, (r, req) => {
+    if (req.method === 'POST') { posts.push(r); return { status: 'pending' }; }
+    return req.url.endsWith(`/${posts[0].id}`) ? { code: 404, body: {} } : signed(posts[0]);
+  });
+  captureStderr(t);
+  await assert.rejects(requestAuthorization(config, { ...options, ttl: 60 }), /invalid_decision/);
+  assert.equal(posts.length, 2);
+});
 test('prazo vencido e decisão futura não autorizam', () => {
   const now = Date.now();
   const request = { v: 1, id: 'a'.repeat(64), requester: 'test-client', summary: 'Teste', created_at: now - 2000, expires_at: now - 1000 };
