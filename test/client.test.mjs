@@ -39,6 +39,14 @@ test('servidor falso: recusado', async t => {
   const config = await fake(t, r => signed(r, 'denied'));
   assert.equal((await requestAuthorization(config, options)).decision, 'denied');
 });
+test('servidor falso: decisão com relógio 3 segundos à frente é aceita', async t => {
+  const config = await fake(t, r => signed(r, 'approved', d => ({ ...d, decided_at: Date.now() + 3000 })));
+  assert.equal((await requestAuthorization(config, { ...options, ttl: 30 })).decision, 'approved');
+});
+test('servidor falso: decisão com relógio 10 segundos à frente é recusada', async t => {
+  const config = await fake(t, r => signed(r, 'approved', d => ({ ...d, decided_at: Date.now() + 10000 })));
+  await assert.rejects(requestAuthorization(config, { ...options, ttl: 30 }), /invalid_decision/);
+});
 test('servidor falso: pendente até expirar', async t => {
   const config = await fake(t, () => ({ status: 'pending' }));
   assert.equal((await requestAuthorization(config, { ...options, ttl: 1 })).decision, 'expired');

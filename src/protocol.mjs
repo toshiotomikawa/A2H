@@ -26,7 +26,7 @@ export function verifyDecision(envelope, expected, publicKey, now = Date.now()) 
   if (!exact(d, DECISION_FIELDS) || !REQUEST_FIELDS.every(k => d[k] === expected[k])
     || !['approved', 'denied', 'expired'].includes(d.decision)
     || !Number.isSafeInteger(d.decided_at) || d.decided_at < d.created_at
-    || d.decided_at > now || now < d.created_at
+    || d.decided_at > now + 5000 || now < d.created_at
     || (d.decision === 'expired' ? d.decided_at < d.expires_at : d.decided_at >= d.expires_at)
     || typeof envelope.signature !== 'string' || !/^[A-Za-z0-9_-]{86}$/.test(envelope.signature)) {
     throw new Error('invalid_decision');

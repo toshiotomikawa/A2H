@@ -20,7 +20,7 @@ Desinstale com `powershell -NoProfile -File scripts/uninstall.ps1`. A instalaç�
 
 A integração do bot deve fornecer `POST /actions/a2h/requests` e `GET /actions/a2h/requests/:id`, autenticados por Bearer e isolados por identidade. O POST contém `v=1`, nonce aleatório de 256 bits em `id`, `requester`, `summary`, `created_at` e `expires_at` (milissegundos Unix). Sem decisão, responde `{"status":"pending"}`. A resposta final é `{payload, signature}`; o payload repete todos os campos e acrescenta `decision` (`approved`, `denied`, `expired`) e `decided_at`.
 
-Assina-se UTF-8 de `JSON.stringify(["A2H-DECISION-v1", v, id, requester, summary, created_at, expires_at, decision, decided_at])`, usando Ed25519, com assinatura base64url sem padding. O cliente exige correspondência exata de todos os campos, confere assinatura, tipo da chave, decisão e horários. O relógio monotônico também limita a espera. HTTP sem TLS só é aceito em loopback literal com `allowLoopbackHttp: true`, reservado a testes locais.
+Assina-se UTF-8 de `JSON.stringify(["A2H-DECISION-v1", v, id, requester, summary, created_at, expires_at, decision, decided_at])`, usando Ed25519, com assinatura base64url sem padding. O cliente exige correspondência exata de todos os campos, confere assinatura, tipo da chave, decisão e horários. Aceita `decided_at` até 5 segundos à frente do relógio local; as demais checagens de tempo e expiração permanecem estritas. O relógio monotônico também limita a espera. HTTP sem TLS só é aceito em loopback literal com `allowLoopbackHttp: true`, reservado a testes locais.
 
 ## Modelo de ameaça
 
